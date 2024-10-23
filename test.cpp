@@ -47,24 +47,33 @@ void run(int NR, int NC, int nthreads) {
         int upto = NC - NC % jump;
 
         for (int i = start, end = start + len; i < end; ++i) {
-            auto xptr = wrk->fetch_copy(i, bptr);
+            auto xptr = wrk->fetch(i, bptr);
+            tatami::copy_n(xptr, NC, bptr);
 
             if constexpr(!simd) {
                 for (int j = 0; j < NC; ++j) {
-                    bptr[j] = xptr[j] / aptr[j];
+                    auto x = xptr[j];
+                    auto a = aptr[j];
+                    bptr[j] = x / a + x * a;
                 }
 
             } else {
                 for (int j = 0; j < upto; j += jump) {
                     if constexpr(std::is_same<T, double>::value) {
-                        _mm256_store_pd(bptr + j, _mm256_div_pd(_mm256_loadu_pd(xptr + j), _mm256_load_pd(aptr + j)));
+                        auto x = _mm256_loadu_pd(xptr + j);
+                        auto a = _mm256_loadu_pd(aptr + j);
+                        _mm256_store_pd(bptr + j, _mm256_add_pd(_mm256_div_pd(x, a), _mm256_mul_pd(x, a)));
                     } else {
-                        _mm256_store_ps(bptr + j, _mm256_div_ps(_mm256_loadu_ps(xptr + j), _mm256_loadu_ps(aptr + j)));
+                        auto x = _mm256_loadu_ps(xptr + j);
+                        auto a = _mm256_loadu_ps(aptr + j);
+                        _mm256_store_ps(bptr + j, _mm256_add_ps(_mm256_div_ps(x, a), _mm256_mul_ps(x, a)));
                     }
                 }
 
                 for (int j = upto; j < NC; ++j) {
-                    bptr[j] = xptr[j] / aptr[j];
+                    auto x = xptr[j];
+                    auto a = aptr[j];
+                    bptr[j] = x / a + x * a;
                 }
             }
 
