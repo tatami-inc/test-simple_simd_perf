@@ -64,8 +64,9 @@ The same testing also revealed few missed vectorization opportunities:
 
 - Gather and scatter commands when retrieving and setting sparse indices.
   This cannot be auto-vectorized due to the theoretical possibility of repeated indices.
-- Certain `<math>` operations cannot be auto-vectorized due to errno-related side-effects.
-  This requires some additional flags like `-ffast-math`, which don't feel entirely safe.
+- Certain `<cmath>` operations cannot be auto-vectorized due to errno-related side-effects.
+  This requires some additional flags like `-fno-math-errno` for `sqrt()` (which is acceptable)
+  or `-ffast-math` for `log()` (which is not) to convince the compiler to auto-vectorize.
 - Reduction operations on floats don't get autovectorized without `-ffast-math`, obviously.
   Interestingly, integer reductions are auto-vectorized, though these are pretty rare in my code.
 
@@ -78,9 +79,12 @@ I also found out that MSVC enables [fast floating-math with this pragma](https:/
 which is not something I want in general.
 All in all, it didn't seem worth the trouble.
 
-The alternative to OpenMP SIMD would be to use a third-party library, given that `std::experimental::simd` is still, well, experimental.
-This is basically a no-go as it violates my standing rule against external dependencies.
-I would need to see an order-of-magnitude performance improvement to break this rule, and I'm not getting that here.
+The alternative to OpenMP SIMD would be to use a third-party library. 
+For example, a library like Eigen implements its own vectorized math functions that do not relyi on dangerous compiler flags.
+This is a no-go for the core **tatami** packages as it violates my standing rule against external dependencies,
+but you could imagine implementing vectorized versions of delayed operations in a separate library that accepts the dependency burden.
+(In the most common case of a log-transformed normalized matrix, a separate helper operation would be desirable anyway,
+as this would allow calculation of the `log1p(x / sf) / log(2)` operation in one pass instead of 3.)
 
 Another practical consideration is that applications relying on vector intrinsics are difficult to deploy.
 I've run into problems with `-march=native` on heterogeneous clusters before,
