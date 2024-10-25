@@ -78,6 +78,8 @@ and forces the use of, e.g., slow instructions, reduced clock speeds.
 I also found out that MSVC enables [fast floating-math with this pragma](https://devblogs.microsoft.com/cppblog/simd-extension-to-c-openmp-in-visual-studio/),
 which is not something I want in general.
 All in all, it didn't seem worth the trouble.
+Instead, I ended up writing a cross-compiler macro in [`SUBPAR_VECTORIZABLE`](https://github.com/LTLA/subpar) to indicate that loop iterations are independent.
+This encourages auto-vectorization while still respecting the compiler's cost calculations.
 
 The alternative to OpenMP SIMD would be to use a third-party library. 
 For example, a library like Eigen implements its own vectorized math functions that do not relyi on dangerous compiler flags.
